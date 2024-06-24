@@ -67,12 +67,11 @@ const app = new Elysia()
         }
       },
     }
-  );
-
-app.listen({
-  hostname: Bun.env.HOSTNAME || "localhost",
-  port: Bun.env.PORT || 3000,
-});
+  )
+  .listen({
+    hostname: Bun.env.HOSTNAME || "localhost",
+    port: Bun.env.PORT || 3000,
+  });
 
 console.log(
   `🦊 Elysia is running at ${app.server?.hostname}:${app.server?.port}`

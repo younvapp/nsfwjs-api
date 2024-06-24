@@ -1,21 +1,19 @@
 import { Elysia, StatusMap } from "elysia";
 import { bearer } from "@elysiajs/bearer";
-import * as tf from "@tensorflow/tfjs";
+import * as tf from "@tensorflow/tfjs-node";
 import * as nsfwjs from "nsfwjs";
 import sharp from "sharp";
 import cors from "@elysiajs/cors";
 import swagger from "@elysiajs/swagger";
+import * as jpeg from "jpeg-js";
 
-const modelName = Bun.env.MODEL_NAME || "InceptionV3";
+await tf.enableProdMode();
+await tf.ready();
 
-let model: nsfwjs.NSFWJS;
-
-if (modelName === "InceptionV3") {
-  model = await nsfwjs.load(modelName, { type: "graph" });
-} else {
-  model = await nsfwjs.load(modelName);
-}
-
+const model = await nsfwjs.load(
+  Bun.pathToFileURL(Bun.env.MODEL || "./models/nsfwjs/").toString(),
+  { size: 299 }
+);
 const app = new Elysia()
   .use(bearer())
   .use(cors())
@@ -24,25 +22,18 @@ const app = new Elysia()
     "/classify",
     async (ctx) => {
       const imageBuffer = await ctx.request.arrayBuffer();
-      const image = sharp(imageBuffer);
-      const imageMetadata = await image.metadata();
-      const numChannels = 3;
-      if (!imageMetadata.width || !imageMetadata.height) {
-        throw new Error("Image width is not available");
+      const image = await sharp(imageBuffer).raw().jpeg().toBuffer();
+      const decoded = jpeg.decode(image);
+      const { width, height, data } = decoded;
+      const buffer = new Uint8Array(width * height * 3);
+      let offset = 0;
+      for (let i = 0; i < buffer.length; i += 3) {
+        buffer[i] = data[offset];
+        buffer[i + 1] = data[offset + 1];
+        buffer[i + 2] = data[offset + 2];
+        offset += 4;
       }
-      const numPixels = imageMetadata.width * imageMetadata.height;
-      const values = new Int32Array(numPixels * numChannels);
-      const rawValues = await image.raw().toBuffer();
-      for (let i = 0; i < numPixels; i++) {
-        for (let c = 0; c < numChannels; c++) {
-          values[i * numChannels + c] = rawValues[i * 4 + c];
-        }
-      }
-      const imageTensor = tf.tensor3d(
-        values,
-        [imageMetadata.height, imageMetadata.width, numChannels],
-        "int32"
-      );
+      let imageTensor = tf.tensor3d(buffer, [height, width, 3]);
 
       const predictions = await model.classify(imageTensor);
       let result: Record<string, number> = {};

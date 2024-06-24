@@ -11,7 +11,9 @@
     "@elysiajs/cors": "^1.0.2",
     "@elysiajs/swagger": "^1.0.5",
     "@tensorflow/tfjs": "^4.20.0",
+    "@tensorflow/tfjs-node": "^4.20.0",
     "elysia": "latest",
+    "jpeg-js": "^0.4.4",
     "nsfwjs": "^4.1.0",
     "sharp": "^0.33.4",
     "tfjs-node": "tensorflow/tfjs-node"

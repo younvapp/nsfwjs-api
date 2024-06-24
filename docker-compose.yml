@@ -1,0 +1,8 @@
+services:
+  api:
+    build: .
+    env_file:
+      - .env
+    ports:
+      - "39000:39000"
+    command: bun start

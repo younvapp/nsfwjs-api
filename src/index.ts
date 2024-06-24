@@ -21,26 +21,33 @@ const app = new Elysia()
   .post(
     "/classify",
     async (ctx) => {
-      const imageBuffer = await ctx.request.arrayBuffer();
-      const image = await sharp(imageBuffer).raw().jpeg().toBuffer();
-      const decoded = jpeg.decode(image);
-      const { width, height, data } = decoded;
-      const buffer = new Uint8Array(width * height * 3);
-      let offset = 0;
-      for (let i = 0; i < buffer.length; i += 3) {
-        buffer[i] = data[offset];
-        buffer[i + 1] = data[offset + 1];
-        buffer[i + 2] = data[offset + 2];
-        offset += 4;
-      }
-      let imageTensor = tf.tensor3d(buffer, [height, width, 3]);
+      let imageTensor;
+      try {
+        const imageBuffer = await ctx.request.arrayBuffer();
+        const image = await sharp(imageBuffer).raw().jpeg().toBuffer();
+        const decoded = jpeg.decode(image);
+        const { width, height, data } = decoded;
+        const buffer = new Uint8Array(width * height * 3);
+        let offset = 0;
+        for (let i = 0; i < buffer.length; i += 3) {
+          buffer[i] = data[offset];
+          buffer[i + 1] = data[offset + 1];
+          buffer[i + 2] = data[offset + 2];
+          offset += 4;
+        }
+        imageTensor = tf.tensor3d(buffer, [height, width, 3]);
 
-      const predictions = await model.classify(imageTensor);
-      let result: Record<string, number> = {};
-      predictions.forEach((p) => {
-        result[p.className] = p.probability;
-      });
-      return result;
+        const predictions = await model.classify(imageTensor);
+        let result: Record<string, number> = {};
+        predictions.forEach((p) => {
+          result[p.className] = p.probability;
+        });
+        return result;
+      } finally {
+        if (imageTensor) {
+          tf.dispose(imageTensor);
+        }
+      }
     },
     {
       beforeHandle(context) {
